@@ -1,9 +1,10 @@
 <resources>
     <string name="app_name">MiTiempoSemanal</string>
-    <string name="student_header">Juan Sánchez · v0.1.0 (1)</string>
+    <string name="student_header">Juan Sánchez · v0.2.0 (2)</string>
     <string name="app_subtitle">Gestión de Tiempo · SENATI</string>
 
     <!-- Tabs -->
+    <string name="tab_eventos">Eventos</string>
     <string name="tab_tareas">Tareas</string>
     <string name="tab_categorias">Categorías</string>
 
@@ -33,6 +34,25 @@
     <string name="error_tarea_sin_categoria">Debes seleccionar una categoría válida</string>
     <string name="error_tarea_duplicada">Ya existe una tarea con este nombre. Intenta con otro.</string>
     <string name="confirmar_eliminar_tarea">¿Deseas eliminar la tarea \"%1$s\"?</string>
+
+    <!-- Sprint 2: Eventos y Búsqueda -->
+    <string name="buscar_tarea_hint">Escribe 2 letras o más para buscar tarea...</string>
+    <string name="btn_iniciar">Iniciar</string>
+    <string name="btn_finalizar">Finalizar</string>
+    <string name="evento_en_curso_titulo">Evento en curso</string>
+    <string name="sin_evento_en_curso">No hay ningún evento en curso</string>
+    <string name="hora_inicio_label">Inicio: %1$s</string>
+    <string name="hora_fin_label">Fin: %1$s</string>
+    <string name="duracion_label">Duración: %1$s</string>
+    <string name="categoria_label">Categoría: %1$s</string>
+    <string name="historial_eventos_titulo">Historial de eventos</string>
+    <string name="dialog_crear_tarea_rapida_titulo">Crear tarea \"%1$s\"</string>
+    <string name="dialog_crear_tarea_rapida_msg">La tarea no existe. Selecciona una categoría para crearla e iniciar el evento automáticamente:</string>
+    <string name="msg_evento_iniciado">Evento iniciado</string>
+    <string name="msg_evento_finalizado">Evento finalizado (%1$s)</string>
+    <string name="error_evento_ya_en_curso">Ya existe un evento en curso. Debes finalizarlo primero.</string>
+    <string name="error_escribe_tarea">Escribe o selecciona el nombre de una tarea</string>
+    <string name="empty_eventos">No hay eventos registrados aún.\nBusca una tarea y presiona Iniciar.</string>
 
     <!-- General -->
     <string name="guardar">Guardar</string>

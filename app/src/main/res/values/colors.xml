@@ -19,4 +19,8 @@
     <color name="border_color">#E2E8F0</color>
     <color name="danger">#DC2626</color>
     <color name="danger_light">#FEE2E2</color>
+    <color name="success">#16A34A</color>
+    <color name="success_light">#DCFCE7</color>
+    <color name="warning">#D97706</color>
+    <color name="warning_light">#FEF3C7</color>
 </resources>

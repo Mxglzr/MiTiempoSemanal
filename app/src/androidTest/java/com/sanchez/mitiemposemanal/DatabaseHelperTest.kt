@@ -144,4 +144,78 @@ class DatabaseHelperTest {
         assertTrue(eliminada)
         assertFalse(dbHelper.obtenerTareas().any { it.id == idTarea })
     }
+
+    // ==========================================
+    // PRUEBAS SPRINT 2 (HU-03, HU-04, HU-05)
+    // ==========================================
+
+    @Test
+    fun testBuscarTareasPorNombre() {
+        val idEstudio = dbHelper.obtenerCategorias().first { it.nombre == "Estudio" }.id
+        val idTrabajo = dbHelper.obtenerCategorias().first { it.nombre == "Trabajo" }.id
+
+        dbHelper.insertarTarea("Leer Kotlin", idEstudio)
+        dbHelper.insertarTarea("Proyecto Android", idTrabajo)
+
+        // Búsqueda con menos de 2 letras debe retornar lista vacía (criterio HU-03)
+        val resultado1Letra = dbHelper.buscarTareasPorNombre("k")
+        assertTrue(resultado1Letra.isEmpty())
+
+        // Búsqueda con 2 o más letras
+        val resultadoKo = dbHelper.buscarTareasPorNombre("ko")
+        assertEquals(1, resultadoKo.size)
+        assertEquals("Leer Kotlin", resultadoKo[0].nombre)
+        assertEquals("Estudio", resultadoKo[0].categoriaNombre)
+
+        // Búsqueda insensible a mayúsculas/minúsculas
+        val resultadoMayus = dbHelper.buscarTareasPorNombre("ANDROID")
+        assertEquals(1, resultadoMayus.size)
+        assertEquals("Proyecto Android", resultadoMayus[0].nombre)
+        assertEquals("Trabajo", resultadoMayus[0].categoriaNombre)
+    }
+
+    @Test
+    fun testIniciarYFinalizarEvento() {
+        val idEstudio = dbHelper.obtenerCategorias().first { it.nombre == "Estudio" }.id
+        val idTarea = dbHelper.insertarTarea("Aprender Room", idEstudio)
+
+        // 1. Iniciar evento
+        val fechaInicio = "2026-10-12 10:00:00"
+        val idEvento = dbHelper.iniciarEvento(idTarea, fechaInicio)
+        assertTrue(idEvento > 0)
+
+        // 2. Verificar que el evento está en curso
+        val enCurso = dbHelper.obtenerEventoEnCurso()
+        assertNotNull(enCurso)
+        assertEquals(idEvento, enCurso?.id)
+        assertEquals("Aprender Room", enCurso?.tareaNombre)
+        assertEquals("Estudio", enCurso?.categoriaNombre)
+        assertEquals(fechaInicio, enCurso?.fechaInicio)
+        assertNull(enCurso?.fechaFin)
+
+        // 3. Solo puede haber un evento en curso a la vez (criterio HU-05)
+        val segundoEvento = dbHelper.iniciarEvento(idTarea, "2026-10-12 10:05:00")
+        assertEquals(-1L, segundoEvento)
+
+        // 4. Finalizar evento
+        val fechaFin = "2026-10-12 10:45:00"
+        val duracionSegundos = 2700L // 45 minutos
+        val finalizado = dbHelper.finalizarEvento(idEvento, fechaFin, duracionSegundos)
+        assertTrue(finalizado)
+
+        // 5. Verificar que ya no hay evento en curso
+        val enCursoDespues = dbHelper.obtenerEventoEnCurso()
+        assertNull(enCursoDespues)
+
+        // 6. Verificar historial de eventos
+        val historial = dbHelper.obtenerHistorialEventos()
+        assertEquals(1, historial.size)
+        val eventoRegistrado = historial[0]
+        assertEquals("Aprender Room", eventoRegistrado.tareaNombre)
+        assertEquals("Estudio", eventoRegistrado.categoriaNombre)
+        assertEquals(fechaInicio, eventoRegistrado.fechaInicio)
+        assertEquals(fechaFin, eventoRegistrado.fechaFin)
+        assertEquals(duracionSegundos, eventoRegistrado.duracionSegundos)
+        assertEquals("45m", eventoRegistrado.duracionFormateada())
+    }
 }

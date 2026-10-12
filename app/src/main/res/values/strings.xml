@@ -1,0 +1,44 @@
+<resources>
+    <string name="app_name">MiTiempoSemanal</string>
+    <string name="student_header">Miguel Sánchez · v0.1.0 (1)</string>
+    <string name="app_subtitle">Gestión de Tiempo · SENATI</string>
+
+    <!-- Tabs -->
+    <string name="tab_tareas">Tareas</string>
+    <string name="tab_categorias">Categorías</string>
+
+    <!-- HU-01 Categorías -->
+    <string name="crear_categoria">Nueva Categoría</string>
+    <string name="editar_categoria">Editar Categoría</string>
+    <string name="nombre_categoria">Nombre de la categoría</string>
+    <string name="eliminar_categoria">Eliminar Categoría</string>
+    <string name="msg_categoria_creada">Categoría creada con éxito</string>
+    <string name="msg_categoria_actualizada">Categoría actualizada con éxito</string>
+    <string name="msg_categoria_eliminada">Categoría eliminada con éxito</string>
+    <string name="error_categoria_vacia">El nombre de la categoría no puede estar vacío</string>
+    <string name="error_categoria_duplicada">El nombre de la categoría ya existe. Intenta con otro.</string>
+    <string name="confirmar_eliminar_categoria">¿Deseas eliminar la categoría \"%1$s\"?</string>
+    <string name="error_categoria_con_tareas">No se puede eliminar la categoría \"%1$s\" porque tiene tareas asociadas. Elimina o reasigna las tareas primero.</string>
+
+    <!-- HU-02 Tareas -->
+    <string name="crear_tarea">Nueva Tarea</string>
+    <string name="editar_tarea">Editar Tarea</string>
+    <string name="nombre_tarea">Nombre de la tarea</string>
+    <string name="seleccionar_categoria">Selecciona una categoría</string>
+    <string name="eliminar_tarea">Eliminar Tarea</string>
+    <string name="msg_tarea_creada">Tarea creada con éxito</string>
+    <string name="msg_tarea_actualizada">Tarea actualizada con éxito</string>
+    <string name="msg_tarea_eliminada">Tarea eliminada con éxito</string>
+    <string name="error_tarea_vacia">El nombre de la tarea no puede estar vacío</string>
+    <string name="error_tarea_sin_categoria">Debes seleccionar una categoría válida</string>
+    <string name="error_tarea_duplicada">Ya existe una tarea con este nombre. Intenta con otro.</string>
+    <string name="confirmar_eliminar_tarea">¿Deseas eliminar la tarea \"%1$s\"?</string>
+
+    <!-- General -->
+    <string name="guardar">Guardar</string>
+    <string name="cancelar">Cancelar</string>
+    <string name="eliminar">Eliminar</string>
+    <string name="entendido">Entendido</string>
+    <string name="empty_tareas">No hay tareas registradas aún.\nPresiona + para crear una.</string>
+    <string name="empty_categorias">No hay categorías registradas.\nPresiona + para crear una.</string>
+</resources>

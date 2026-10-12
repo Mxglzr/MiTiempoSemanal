@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.sanchez.mitiemposemanal.data.model.Categoria
 import com.sanchez.mitiemposemanal.data.model.Evento
+import com.sanchez.mitiemposemanal.data.model.ResumenCategoriaSemanal
 import com.sanchez.mitiemposemanal.data.model.Tarea
 
 class DatabaseHelper(context: Context) :
@@ -538,5 +539,95 @@ class DatabaseHelper(context: Context) :
         }
         cursor.close()
         return lista
+    }
+
+    // ==========================================
+    // SPRINT 3: RESUMEN SEMANAL POR CATEGORÍA (HU-06)
+    // ==========================================
+
+    /**
+     * Calcula los totales por categoría para una semana usando una consulta SQL con SUM y GROUP BY.
+     * Retorna todas las categorías existentes (incluso las que tienen 0 segundos acumulados).
+     * Requisito técnico: no sumar en un ciclo en Kotlin.
+     */
+    fun obtenerResumenSemanalCategorias(
+        inicioSemana: String,
+        finSemana: String
+    ): List<ResumenCategoriaSemanal> {
+        val lista = mutableListOf<ResumenCategoriaSemanal>()
+        val db = readableDatabase
+        val sql = """
+            SELECT c.$COL_CAT_ID AS cat_id, 
+                   c.$COL_CAT_NOMBRE AS cat_nombre, 
+                   COALESCE(SUM(e.$COL_EVT_DURACION_SEGUNDOS), 0) AS total_segundos
+            FROM $TABLA_CATEGORIAS c
+            LEFT JOIN $TABLA_TAREAS t ON t.$COL_TAR_CATEGORIA_ID = c.$COL_CAT_ID
+            LEFT JOIN $TABLA_EVENTOS e ON e.$COL_EVT_TAREA_ID = t.$COL_TAR_ID 
+                 AND e.$COL_EVT_FECHA_FIN IS NOT NULL 
+                 AND e.$COL_EVT_FECHA_INICIO >= ? 
+                 AND e.$COL_EVT_FECHA_INICIO <= ?
+            GROUP BY c.$COL_CAT_ID, c.$COL_CAT_NOMBRE
+            ORDER BY c.$COL_CAT_NOMBRE ASC
+        """.trimIndent()
+
+        val cursor = db.rawQuery(sql, arrayOf(inicioSemana, finSemana))
+        if (cursor.moveToFirst()) {
+            val idIndex = cursor.getColumnIndexOrThrow("cat_id")
+            val nombreIndex = cursor.getColumnIndexOrThrow("cat_nombre")
+            val segundosIndex = cursor.getColumnIndexOrThrow("total_segundos")
+
+            do {
+                val id = cursor.getLong(idIndex)
+                val nombre = cursor.getString(nombreIndex)
+                val segundos = cursor.getLong(segundosIndex)
+                lista.add(ResumenCategoriaSemanal(id, nombre, segundos))
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return lista
+    }
+
+    /**
+     * Cuenta el número de eventos finalizados en una semana dada.
+     */
+    fun contarEventosSemana(inicioSemana: String, finSemana: String): Int {
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM $TABLA_EVENTOS WHERE $COL_EVT_FECHA_FIN IS NOT NULL AND $COL_EVT_FECHA_INICIO >= ? AND $COL_EVT_FECHA_INICIO <= ?",
+            arrayOf(inicioSemana, finSemana)
+        )
+        var total = 0
+        if (cursor.moveToFirst()) {
+            total = cursor.getInt(0)
+        }
+        cursor.close()
+        return total
+    }
+
+    /**
+     * Obtiene la categoría con más tiempo acumulado en una semana dada (si existe).
+     */
+    fun obtenerCategoriaTopSemana(inicioSemana: String, finSemana: String): String? {
+        val db = readableDatabase
+        val sql = """
+            SELECT c.$COL_CAT_NOMBRE, SUM(e.$COL_EVT_DURACION_SEGUNDOS) as total
+            FROM $TABLA_EVENTOS e
+            INNER JOIN $TABLA_TAREAS t ON e.$COL_EVT_TAREA_ID = t.$COL_TAR_ID
+            INNER JOIN $TABLA_CATEGORIAS c ON t.$COL_TAR_CATEGORIA_ID = c.$COL_CAT_ID
+            WHERE e.$COL_EVT_FECHA_FIN IS NOT NULL 
+              AND e.$COL_EVT_FECHA_INICIO >= ? 
+              AND e.$COL_EVT_FECHA_INICIO <= ?
+            GROUP BY c.$COL_CAT_ID, c.$COL_CAT_NOMBRE
+            HAVING total > 0
+            ORDER BY total DESC
+            LIMIT 1
+        """.trimIndent()
+        val cursor = db.rawQuery(sql, arrayOf(inicioSemana, finSemana))
+        var topCat: String? = null
+        if (cursor.moveToFirst()) {
+            topCat = cursor.getString(0)
+        }
+        cursor.close()
+        return topCat
     }
 }

@@ -218,4 +218,57 @@ class DatabaseHelperTest {
         assertEquals(duracionSegundos, eventoRegistrado.duracionSegundos)
         assertEquals("45m", eventoRegistrado.duracionFormateada())
     }
+
+    // ==========================================
+    // PRUEBAS SPRINT 3 (HU-06: PORCENTAJE SEMANAL)
+    // ==========================================
+
+    @Test
+    fun testResumenSemanalPorCategoria() {
+        val idEstudio = dbHelper.obtenerCategorias().first { it.nombre == "Estudio" }.id
+        val idTrabajo = dbHelper.obtenerCategorias().first { it.nombre == "Trabajo" }.id
+
+        val idTareaEstudio = dbHelper.insertarTarea("Repaso Kotlin", idEstudio)
+        val idTareaTrabajo = dbHelper.insertarTarea("Turno Taller", idTrabajo)
+
+        val rangoInicio = "2026-10-12 00:00:00"
+        val rangoFin = "2026-10-18 23:59:59"
+
+        // 1. Evento de Estudio en la semana: 21 horas (75 600 segundos) -> debe ser exactamente 12.5%
+        val idEvt1 = dbHelper.iniciarEvento(idTareaEstudio, "2026-10-13 09:00:00")
+        val duracionEstudio = 21L * 3600L // 75 600 segundos = 21 horas
+        dbHelper.finalizarEvento(idEvt1, "2026-10-13 18:00:00", duracionEstudio)
+
+        // 2. Evento de Trabajo en la semana: 8.4 horas (30 240 segundos) -> (8.4 / 168) * 100 = 5.0%
+        val idEvt2 = dbHelper.iniciarEvento(idTareaTrabajo, "2026-10-14 08:00:00")
+        val duracionTrabajo = 30240L
+        dbHelper.finalizarEvento(idEvt2, "2026-10-14 16:24:00", duracionTrabajo)
+
+        // 3. Evento de Estudio en semana pasada (fuera del rango): no debe sumarse
+        val idEvtPasado = dbHelper.iniciarEvento(idTareaEstudio, "2026-10-05 10:00:00")
+        dbHelper.finalizarEvento(idEvtPasado, "2026-10-05 15:00:00", 18000L)
+
+        // 4. Ejecutar consulta SQL agrupada con SUM y GROUP BY
+        val resumen = dbHelper.obtenerResumenSemanalCategorias(rangoInicio, rangoFin)
+
+        // Debe incluir todas las categorías existentes (al menos las 4 iniciales)
+        assertTrue(resumen.size >= 4)
+
+        val itemEstudio = resumen.first { it.categoriaNombre == "Estudio" }
+        assertEquals(duracionEstudio, itemEstudio.totalSegundos)
+        assertEquals(21.0, itemEstudio.totalHoras, 0.001)
+        assertEquals(12.5, itemEstudio.porcentaje, 0.001)
+        assertEquals("12.5 %", itemEstudio.porcentajeFormateado())
+        assertEquals("21.0 h", itemEstudio.horasFormateadas())
+
+        val itemTrabajo = resumen.first { it.categoriaNombre == "Trabajo" }
+        assertEquals(duracionTrabajo, itemTrabajo.totalSegundos)
+        assertEquals(5.0, itemTrabajo.porcentaje, 0.001)
+        assertEquals("5.0 %", itemTrabajo.porcentajeFormateado())
+
+        val itemDescanso = resumen.first { it.categoriaNombre == "Descanso" }
+        assertEquals(0L, itemDescanso.totalSegundos)
+        assertEquals(0.0, itemDescanso.porcentaje, 0.001)
+        assertEquals("0.0 %", itemDescanso.porcentajeFormateado())
+    }
 }

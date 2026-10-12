@@ -21,12 +21,17 @@ import com.sanchez.mitiemposemanal.databinding.ActivityMainBinding
 import com.sanchez.mitiemposemanal.databinding.DialogCategoriaBinding
 import com.sanchez.mitiemposemanal.databinding.DialogCrearTareaEventoBinding
 import com.sanchez.mitiemposemanal.databinding.DialogTareaBinding
+import com.sanchez.mitiemposemanal.databinding.ItemFilaPorcentajeBinding
 import com.sanchez.mitiemposemanal.ui.adapter.CategoriaAdapter
 import com.sanchez.mitiemposemanal.ui.adapter.EventoAdapter
 import com.sanchez.mitiemposemanal.ui.adapter.TareaAdapter
+import java.time.DayOfWeek
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -40,12 +45,13 @@ class MainActivity : AppCompatActivity() {
     private var tareasEncontradas: List<Tarea> = emptyList()
     private val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
-    private var tabActual: Int = TAB_EVENTOS
+    private var tabActual: Int = TAB_INICIO
 
     companion object {
-        private const val TAB_EVENTOS = 0
-        private const val TAB_TAREAS = 1
-        private const val TAB_CATEGORIAS = 2
+        private const val TAB_INICIO = 0
+        private const val TAB_EVENTOS = 1
+        private const val TAB_TAREAS = 2
+        private const val TAB_CATEGORIAS = 3
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,16 +72,25 @@ class MainActivity : AppCompatActivity() {
         configurarBuscadorYEventos()
         configurarTabs()
         configurarFab()
+        configurarDashboardInicio()
 
-        // Cargar vista inicial de Eventos (Sprint 2)
-        cargarVistaEventos()
+        // Cargar vista inicial de Inicio (Dashboard)
+        cargarVistaInicio()
     }
 
     override fun onResume() {
         super.onResume()
         // Criterio HU-05: Si cierro la app con un evento en curso, al volver a abrirla sigue en curso
-        if (tabActual == TAB_EVENTOS) {
+        if (tabActual == TAB_INICIO) {
+            actualizarDashboardInicio()
+        } else if (tabActual == TAB_EVENTOS) {
             actualizarVistaEventos()
+        }
+    }
+
+    private fun configurarDashboardInicio() {
+        binding.btnDashboardIrAEventos.setOnClickListener {
+            binding.tabLayout.getTabAt(TAB_EVENTOS)?.select()
         }
     }
 
@@ -106,6 +121,10 @@ class MainActivity : AppCompatActivity() {
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
+                    TAB_INICIO -> {
+                        tabActual = TAB_INICIO
+                        cargarVistaInicio()
+                    }
                     TAB_EVENTOS -> {
                         tabActual = TAB_EVENTOS
                         cargarVistaEventos()
@@ -364,13 +383,25 @@ class MainActivity : AppCompatActivity() {
             binding.layoutEmptyEventos.visibility = View.GONE
             binding.rvEventos.visibility = View.VISIBLE
         }
+
+        // Actualizar dashboard de inicio (HU-06 y KPIs)
+        actualizarDashboardInicio()
     }
 
     // ==========================================
     // CAMBIO DE VISTAS (TABS)
     // ==========================================
 
+    private fun cargarVistaInicio() {
+        binding.layoutInicioContainer.visibility = View.VISIBLE
+        binding.layoutEventosContainer.visibility = View.GONE
+        binding.layoutListaContainer.visibility = View.GONE
+        binding.fabAdd.hide()
+        actualizarDashboardInicio()
+    }
+
     private fun cargarVistaEventos() {
+        binding.layoutInicioContainer.visibility = View.GONE
         binding.layoutEventosContainer.visibility = View.VISIBLE
         binding.layoutListaContainer.visibility = View.GONE
         binding.fabAdd.hide()
@@ -378,6 +409,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun cargarVistaTareas() {
+        binding.layoutInicioContainer.visibility = View.GONE
         binding.layoutEventosContainer.visibility = View.GONE
         binding.layoutListaContainer.visibility = View.VISIBLE
         binding.fabAdd.show()
@@ -399,6 +431,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun cargarVistaCategorias() {
+        binding.layoutInicioContainer.visibility = View.GONE
         binding.layoutEventosContainer.visibility = View.GONE
         binding.layoutListaContainer.visibility = View.VISIBLE
         binding.fabAdd.show()
@@ -416,6 +449,98 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.layoutEmpty.visibility = View.GONE
             binding.rvItems.visibility = View.VISIBLE
+        }
+    }
+
+    // ==========================================
+    // DASHBOARD / INICIO
+    // ==========================================
+
+    private fun actualizarDashboardInicio() {
+        val hoy = LocalDate.now()
+        val lunes = hoy.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val domingo = hoy.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+
+        val dtfRango = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+        binding.tvRangoSemanaInicio.text = getString(
+            R.string.formato_rango_semana,
+            lunes.format(dtfRango),
+            domingo.format(dtfRango)
+        )
+
+        val dtfIso = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val inicioSemanaStr = "${lunes.format(dtfIso)} 00:00:00"
+        val finSemanaStr = "${domingo.format(dtfIso)} 23:59:59"
+
+        val listaResumen = dbHelper.obtenerResumenSemanalCategorias(inicioSemanaStr, finSemanaStr)
+
+        val totalSegundosSemana = 168L * 3600L
+        val totalSegundosRegistrados = listaResumen.sumOf { it.totalSegundos }
+        val horasRegistradas = totalSegundosRegistrados / 3600.0
+
+        val segundosLibres = (totalSegundosSemana - totalSegundosRegistrados).coerceAtLeast(0L)
+        val horasLibres = segundosLibres / 3600.0
+
+        // 1. KPIs
+        binding.tvKpiTiempoDedicado.text = String.format(Locale.US, "%.1f h", horasRegistradas)
+        binding.tvKpiTiempoLibre.text = String.format(Locale.US, "%.1f h", horasLibres)
+
+        val topCat = dbHelper.obtenerCategoriaTopSemana(inicioSemanaStr, finSemanaStr)
+        binding.tvKpiCategoriaTop.text = topCat ?: getString(R.string.ninguna)
+
+        val totalEventos = dbHelper.contarEventosSemana(inicioSemanaStr, finSemanaStr)
+        binding.tvKpiEventosTotales.text = totalEventos.toString()
+
+        // 2. Filas dinámicas en el panel de Inicio
+        binding.llFilasPorcentajeSemanalInicio.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+
+        for (resumen in listaResumen) {
+            val filaBinding = ItemFilaPorcentajeBinding.inflate(inflater, binding.llFilasPorcentajeSemanalInicio, false)
+            filaBinding.tvNombreCategoriaFila.text = resumen.categoriaNombre
+            filaBinding.tvHorasYPorcentajeFila.text = "${resumen.horasFormateadas()} (${resumen.porcentajeFormateado()})"
+
+            val progresoMil = (resumen.porcentaje * 10).toInt().coerceIn(0, 1000)
+            filaBinding.pbPorcentajeFila.progress = progresoMil
+            filaBinding.pbPorcentajeFila.progressTintList = ColorStateList.valueOf(getColor(R.color.primary))
+
+            binding.llFilasPorcentajeSemanalInicio.addView(filaBinding.root)
+        }
+
+        // Fila "Sin registrar"
+        val porcentajeSinRegistrar = (segundosLibres.toDouble() / totalSegundosSemana.toDouble()) * 100.0
+        val filaSinRegistrar = ItemFilaPorcentajeBinding.inflate(inflater, binding.llFilasPorcentajeSemanalInicio, false)
+        filaSinRegistrar.tvNombreCategoriaFila.text = getString(R.string.sin_registrar)
+        filaSinRegistrar.tvNombreCategoriaFila.setTextColor(getColor(R.color.text_secondary))
+
+        val horasStr = String.format(Locale.US, "%.1f h", horasLibres)
+        val porcStr = String.format(Locale.US, "%.1f %%", porcentajeSinRegistrar)
+        filaSinRegistrar.tvHorasYPorcentajeFila.text = "$horasStr ($porcStr)"
+        filaSinRegistrar.tvHorasYPorcentajeFila.setTextColor(getColor(R.color.text_muted))
+
+        val progresoSinRegistrarMil = (porcentajeSinRegistrar * 10).toInt().coerceIn(0, 1000)
+        filaSinRegistrar.pbPorcentajeFila.progress = progresoSinRegistrarMil
+        filaSinRegistrar.pbPorcentajeFila.progressTintList = ColorStateList.valueOf(getColor(R.color.text_muted))
+
+        binding.llFilasPorcentajeSemanalInicio.addView(filaSinRegistrar.root)
+
+        // 3. Widget de actividad actual
+        val eventoEnCurso = dbHelper.obtenerEventoEnCurso()
+        if (eventoEnCurso != null) {
+            binding.badgeDashboardEstado.text = "EN CURSO"
+            binding.badgeDashboardEstado.setBackgroundResource(R.drawable.bg_badge_active)
+            binding.layoutDashboardEventoActivo.visibility = View.VISIBLE
+            binding.tvDashboardSinActividad.visibility = View.GONE
+
+            binding.tvDashboardTareaActiva.text = "${eventoEnCurso.tareaNombre} · ${eventoEnCurso.categoriaNombre}"
+            binding.tvDashboardHoraInicio.text = getString(R.string.hora_inicio_label, eventoEnCurso.fechaInicio)
+            binding.btnDashboardIrAEventos.text = "Ver evento en curso"
+        } else {
+            binding.badgeDashboardEstado.text = "INACTIVO"
+            binding.badgeDashboardEstado.setBackgroundResource(R.drawable.bg_badge_muted)
+            binding.layoutDashboardEventoActivo.visibility = View.GONE
+            binding.tvDashboardSinActividad.visibility = View.VISIBLE
+            binding.btnDashboardIrAEventos.text = getString(R.string.ir_a_eventos)
         }
     }
 

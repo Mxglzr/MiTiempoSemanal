@@ -1,12 +1,24 @@
 <resources>
     <string name="app_name">MiTiempoSemanal</string>
-    <string name="student_header">Juan Sánchez · v0.2.0 (2)</string>
+    <string name="student_header">Miguel Sánchez · v0.3.0 (3)</string>
     <string name="app_subtitle">Gestión de Tiempo · SENATI</string>
 
     <!-- Tabs -->
+    <string name="tab_inicio">Inicio</string>
     <string name="tab_eventos">Eventos</string>
     <string name="tab_tareas">Tareas</string>
     <string name="tab_categorias">Categorías</string>
+
+    <!-- Dashboard / Inicio -->
+    <string name="dashboard_saludo">¡Hola, Miguel!</string>
+    <string name="dashboard_subtitulo">Resumen semanal de tu tiempo</string>
+    <string name="kpi_tiempo_dedicado">Tiempo registrado</string>
+    <string name="kpi_tiempo_libre">Tiempo libre</string>
+    <string name="kpi_categoria_top">Categoría top</string>
+    <string name="kpi_eventos_totales">Eventos semana</string>
+    <string name="ninguna">Ninguna</string>
+    <string name="ir_a_eventos">Registrar nueva tarea</string>
+    <string name="sin_actividad_actual">No hay ninguna tarea en curso en este momento.</string>
 
     <!-- HU-01 Categorías -->
     <string name="crear_categoria">Nueva Categoría</string>
@@ -53,6 +65,12 @@
     <string name="error_evento_ya_en_curso">Ya existe un evento en curso. Debes finalizarlo primero.</string>
     <string name="error_escribe_tarea">Escribe o selecciona el nombre de una tarea</string>
     <string name="empty_eventos">No hay eventos registrados aún.\nBusca una tarea y presiona Iniciar.</string>
+
+    <!-- Sprint 3: Porcentaje semanal por categoría (HU-06) -->
+    <string name="panel_semanal_titulo">Porcentaje semanal por categoría</string>
+    <string name="sin_registrar">Sin registrar</string>
+    <string name="formato_rango_semana">Semana %1$s – %2$s</string>
+    <string name="total_horas_semana_subtitulo">Base: 168 horas (10 080 min)</string>
 
     <!-- General -->
     <string name="guardar">Guardar</string>

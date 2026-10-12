@@ -9,7 +9,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.senati.mitiemposemanal.msanchez"
+        applicationId = "com.senati.mitiemposemanal.jsanchez"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

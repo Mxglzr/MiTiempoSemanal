@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">MiTiempoSemanal</string>
-    <string name="student_header">Miguel Sánchez · v0.3.0 (3)</string>
+    <string name="student_header">Miguel Sánchez · v1.0.0 (4)</string>
     <string name="app_subtitle">Gestión de Tiempo · SENATI</string>
 
     <!-- Tabs -->
@@ -8,6 +8,7 @@
     <string name="tab_eventos">Eventos</string>
     <string name="tab_tareas">Tareas</string>
     <string name="tab_categorias">Categorías</string>
+    <string name="tab_reportes">Reportes</string>
 
     <!-- Dashboard / Inicio -->
     <string name="dashboard_saludo">¡Hola, Miguel!</string>
@@ -71,6 +72,13 @@
     <string name="sin_registrar">Sin registrar</string>
     <string name="formato_rango_semana">Semana %1$s – %2$s</string>
     <string name="total_horas_semana_subtitulo">Base: 168 horas (10 080 min)</string>
+
+    <!-- Sprint 4: Cierre semanal y reportes (HU-07 y HU-08) -->
+    <string name="reportes_titulo">Reportes semanales</string>
+    <string name="reportes_seleccionar_semana">Seleccionar semana cerrada</string>
+    <string name="reportes_eventos_titulo">Eventos registrados en esta semana</string>
+    <string name="sin_reportes_mensaje">Aún no hay reportes</string>
+    <string name="sin_reportes_subtitulo">Al finalizar una semana se guardará su reporte automáticamente.</string>
 
     <!-- General -->
     <string name="guardar">Guardar</string>

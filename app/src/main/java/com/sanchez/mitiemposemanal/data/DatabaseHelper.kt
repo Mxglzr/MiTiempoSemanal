@@ -6,15 +6,22 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.sanchez.mitiemposemanal.data.model.Categoria
 import com.sanchez.mitiemposemanal.data.model.Evento
+import com.sanchez.mitiemposemanal.data.model.ReporteCategoria
+import com.sanchez.mitiemposemanal.data.model.ReporteSemanal
 import com.sanchez.mitiemposemanal.data.model.ResumenCategoriaSemanal
 import com.sanchez.mitiemposemanal.data.model.Tarea
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 
 class DatabaseHelper(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         const val DATABASE_NAME = "mitiemposemanal.db"
-        const val DATABASE_VERSION = 2
+        const val DATABASE_VERSION = 3
 
         // Tabla categorias
         const val TABLA_CATEGORIAS = "categorias"
@@ -34,6 +41,26 @@ class DatabaseHelper(context: Context) :
         const val COL_EVT_FECHA_INICIO = "fecha_inicio"
         const val COL_EVT_FECHA_FIN = "fecha_fin"
         const val COL_EVT_DURACION_SEGUNDOS = "duracion_segundos"
+
+        // Tabla reportes_semanales (Sprint 4)
+        const val TABLA_REPORTES_SEMANALES = "reportes_semanales"
+        const val COL_REP_ID = "id"
+        const val COL_REP_FECHA_INICIO = "fecha_inicio"
+        const val COL_REP_FECHA_FIN = "fecha_fin"
+        const val COL_REP_ETIQUETA_RANGO = "etiqueta_rango"
+        const val COL_REP_SEGUNDOS_REGISTRADOS = "segundos_registrados"
+        const val COL_REP_HORAS_SIN_REGISTRAR = "horas_sin_registrar"
+        const val COL_REP_PORCENTAJE_SIN_REGISTRAR = "porcentaje_sin_registrar"
+
+        // Tabla reportes_categorias (Sprint 4)
+        const val TABLA_REPORTES_CATEGORIAS = "reportes_categorias"
+        const val COL_RC_ID = "id"
+        const val COL_RC_REPORTE_ID = "reporte_id"
+        const val COL_RC_CATEGORIA_ID = "categoria_id"
+        const val COL_RC_CATEGORIA_NOMBRE = "categoria_nombre"
+        const val COL_RC_TOTAL_SEGUNDOS = "total_segundos"
+        const val COL_RC_HORAS = "horas"
+        const val COL_RC_PORCENTAJE = "porcentaje"
     }
 
     override fun onConfigure(db: SQLiteDatabase) {
@@ -69,9 +96,39 @@ class DatabaseHelper(context: Context) :
             );
         """.trimIndent()
 
+        val crearTablaReportesSemanales = """
+            CREATE TABLE $TABLA_REPORTES_SEMANALES (
+                $COL_REP_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COL_REP_FECHA_INICIO TEXT NOT NULL,
+                $COL_REP_FECHA_FIN TEXT NOT NULL,
+                $COL_REP_ETIQUETA_RANGO TEXT NOT NULL,
+                $COL_REP_SEGUNDOS_REGISTRADOS INTEGER NOT NULL DEFAULT 0,
+                $COL_REP_HORAS_SIN_REGISTRAR REAL NOT NULL DEFAULT 168.0,
+                $COL_REP_PORCENTAJE_SIN_REGISTRAR REAL NOT NULL DEFAULT 100.0,
+                UNIQUE($COL_REP_FECHA_INICIO, $COL_REP_FECHA_FIN)
+            );
+        """.trimIndent()
+
+        val crearTablaReportesCategorias = """
+            CREATE TABLE $TABLA_REPORTES_CATEGORIAS (
+                $COL_RC_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COL_RC_REPORTE_ID INTEGER NOT NULL,
+                $COL_RC_CATEGORIA_ID INTEGER NOT NULL,
+                $COL_RC_CATEGORIA_NOMBRE TEXT NOT NULL,
+                $COL_RC_TOTAL_SEGUNDOS INTEGER NOT NULL DEFAULT 0,
+                $COL_RC_HORAS REAL NOT NULL DEFAULT 0.0,
+                $COL_RC_PORCENTAJE REAL NOT NULL DEFAULT 0.0,
+                FOREIGN KEY ($COL_RC_REPORTE_ID) REFERENCES $TABLA_REPORTES_SEMANALES($COL_REP_ID) ON DELETE CASCADE,
+                FOREIGN KEY ($COL_RC_CATEGORIA_ID) REFERENCES $TABLA_CATEGORIAS($COL_CAT_ID),
+                UNIQUE($COL_RC_REPORTE_ID, $COL_RC_CATEGORIA_ID)
+            );
+        """.trimIndent()
+
         db.execSQL(crearTablaCategorias)
         db.execSQL(crearTablaTareas)
         db.execSQL(crearTablaEventos)
+        db.execSQL(crearTablaReportesSemanales)
+        db.execSQL(crearTablaReportesCategorias)
 
         // Precarga de las 4 categorías iniciales obligatorias
         val categoriasIniciales = listOf("Estudio", "Trabajo", "Descanso", "Ocio")
@@ -97,6 +154,40 @@ class DatabaseHelper(context: Context) :
                 );
             """.trimIndent()
             db.execSQL(crearTablaEventos)
+        }
+
+        // En Sprint 4: Si viene de versión anterior a 3, agregamos tablas de reportes
+        if (oldVersion < 3) {
+            val crearTablaReportesSemanales = """
+                CREATE TABLE IF NOT EXISTS $TABLA_REPORTES_SEMANALES (
+                    $COL_REP_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    $COL_REP_FECHA_INICIO TEXT NOT NULL,
+                    $COL_REP_FECHA_FIN TEXT NOT NULL,
+                    $COL_REP_ETIQUETA_RANGO TEXT NOT NULL,
+                    $COL_REP_SEGUNDOS_REGISTRADOS INTEGER NOT NULL DEFAULT 0,
+                    $COL_REP_HORAS_SIN_REGISTRAR REAL NOT NULL DEFAULT 168.0,
+                    $COL_REP_PORCENTAJE_SIN_REGISTRAR REAL NOT NULL DEFAULT 100.0,
+                    UNIQUE($COL_REP_FECHA_INICIO, $COL_REP_FECHA_FIN)
+                );
+            """.trimIndent()
+
+            val crearTablaReportesCategorias = """
+                CREATE TABLE IF NOT EXISTS $TABLA_REPORTES_CATEGORIAS (
+                    $COL_RC_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    $COL_RC_REPORTE_ID INTEGER NOT NULL,
+                    $COL_RC_CATEGORIA_ID INTEGER NOT NULL,
+                    $COL_RC_CATEGORIA_NOMBRE TEXT NOT NULL,
+                    $COL_RC_TOTAL_SEGUNDOS INTEGER NOT NULL DEFAULT 0,
+                    $COL_RC_HORAS REAL NOT NULL DEFAULT 0.0,
+                    $COL_RC_PORCENTAJE REAL NOT NULL DEFAULT 0.0,
+                    FOREIGN KEY ($COL_RC_REPORTE_ID) REFERENCES $TABLA_REPORTES_SEMANALES($COL_REP_ID) ON DELETE CASCADE,
+                    FOREIGN KEY ($COL_RC_CATEGORIA_ID) REFERENCES $TABLA_CATEGORIAS($COL_CAT_ID),
+                    UNIQUE($COL_RC_REPORTE_ID, $COL_RC_CATEGORIA_ID)
+                );
+            """.trimIndent()
+
+            db.execSQL(crearTablaReportesSemanales)
+            db.execSQL(crearTablaReportesCategorias)
         }
     }
 
@@ -629,5 +720,271 @@ class DatabaseHelper(context: Context) :
         }
         cursor.close()
         return topCat
+    }
+
+    // ==========================================
+    // SPRINT 4: CIERRE SEMANAL Y REPORTES (HU-07 & HU-08)
+    // ==========================================
+
+    /**
+     * Verifica si ya existe un reporte guardado para un rango de semana específico.
+     * Criterio técnico: Evitar reportes duplicados (UNIQUE).
+     */
+    fun existeReporteSemanal(inicioSemana: String, finSemana: String): Boolean {
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT 1 FROM $TABLA_REPORTES_SEMANALES WHERE $COL_REP_FECHA_INICIO = ? AND $COL_REP_FECHA_FIN = ? LIMIT 1",
+            arrayOf(inicioSemana, finSemana)
+        )
+        val existe = cursor.moveToFirst()
+        cursor.close()
+        return existe
+    }
+
+    /**
+     * Guarda el reporte completo de una semana cerrada (maestro y detalle por categorías).
+     * Calcula horas y porcentajes sobre las 168 horas semanales reglamentarias.
+     */
+    fun guardarCierreSemana(
+        inicioSemana: String,
+        finSemana: String,
+        etiquetaRango: String
+    ): Long {
+        if (existeReporteSemanal(inicioSemana, finSemana)) {
+            return -1L
+        }
+
+        val listaResumen = obtenerResumenSemanalCategorias(inicioSemana, finSemana)
+        val totalSegundosSemana = 168L * 3600L // 604 800 segundos
+        val totalSegundosRegistrados = listaResumen.sumOf { it.totalSegundos }
+        val segundosSinRegistrar = (totalSegundosSemana - totalSegundosRegistrados).coerceAtLeast(0L)
+        val horasSinRegistrar = segundosSinRegistrar / 3600.0
+        val porcentajeSinRegistrar = (segundosSinRegistrar.toDouble() / totalSegundosSemana.toDouble()) * 100.0
+
+        val db = writableDatabase
+        db.beginTransaction()
+        var reporteId = -1L
+        try {
+            val valuesReporte = ContentValues().apply {
+                put(COL_REP_FECHA_INICIO, inicioSemana)
+                put(COL_REP_FECHA_FIN, finSemana)
+                put(COL_REP_ETIQUETA_RANGO, etiquetaRango)
+                put(COL_REP_SEGUNDOS_REGISTRADOS, totalSegundosRegistrados)
+                put(COL_REP_HORAS_SIN_REGISTRAR, horasSinRegistrar)
+                put(COL_REP_PORCENTAJE_SIN_REGISTRAR, porcentajeSinRegistrar)
+            }
+            reporteId = db.insert(TABLA_REPORTES_SEMANALES, null, valuesReporte)
+
+            if (reporteId != -1L) {
+                for (resumen in listaResumen) {
+                    val valuesCat = ContentValues().apply {
+                        put(COL_RC_REPORTE_ID, reporteId)
+                        put(COL_RC_CATEGORIA_ID, resumen.categoriaId)
+                        put(COL_RC_CATEGORIA_NOMBRE, resumen.categoriaNombre)
+                        put(COL_RC_TOTAL_SEGUNDOS, resumen.totalSegundos)
+                        put(COL_RC_HORAS, resumen.totalHoras)
+                        put(COL_RC_PORCENTAJE, resumen.porcentaje)
+                    }
+                    db.insert(TABLA_REPORTES_CATEGORIAS, null, valuesCat)
+                }
+                db.setTransactionSuccessful()
+            }
+        } finally {
+            db.endTransaction()
+        }
+        return reporteId
+    }
+
+    /**
+     * HU-07: Al abrir la app, si hay semanas terminadas sin reporte, la app guarda el reporte de cada una.
+     * Si el usuario no abrió la app durante varias semanas, se generan los reportes de todas las semanas pendientes que tengan eventos.
+     */
+    fun verificarYGenerarCierresSemanalesPendientes(fechaReferencia: LocalDateTime = LocalDateTime.now()): Int {
+        val hoy = fechaReferencia.toLocalDate()
+        val lunesActual = hoy.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val dtfIso = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val dtfVisual = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+        val inicioSemanaActualStr = "${lunesActual.format(dtfIso)} 00:00:00"
+
+        val db = readableDatabase
+        // Buscar fechas únicas de eventos finalizados de semanas pasadas
+        val cursor = db.rawQuery(
+            """
+            SELECT DISTINCT substr($COL_EVT_FECHA_INICIO, 1, 10) as fecha 
+            FROM $TABLA_EVENTOS 
+            WHERE $COL_EVT_FECHA_FIN IS NOT NULL 
+              AND $COL_EVT_FECHA_INICIO < ? 
+            ORDER BY $COL_EVT_FECHA_INICIO ASC
+            """.trimIndent(),
+            arrayOf(inicioSemanaActualStr)
+        )
+
+        // Agrupar semanas únicas pendientes (lunes a domingo)
+        data class RangoSemana(val inicio: String, val fin: String, val etiqueta: String, val fechaLunes: LocalDate)
+
+        val semanasPendientesMap = linkedMapOf<String, RangoSemana>()
+
+        if (cursor.moveToFirst()) {
+            val fechaIndex = cursor.getColumnIndexOrThrow("fecha")
+            do {
+                val fechaStr = cursor.getString(fechaIndex)
+                runCatching {
+                    val fechaLd = LocalDate.parse(fechaStr, dtfIso)
+                    val lunes = fechaLd.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    val domingo = fechaLd.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+
+                    val inicioStr = "${lunes.format(dtfIso)} 00:00:00"
+                    val finStr = "${domingo.format(dtfIso)} 23:59:59"
+                    val etiqueta = "${lunes.format(dtfVisual)} – ${domingo.format(dtfVisual)}"
+
+                    val clave = "$inicioStr|$finStr"
+                    if (!semanasPendientesMap.containsKey(clave)) {
+                        semanasPendientesMap[clave] = RangoSemana(inicioStr, finStr, etiqueta, lunes)
+                    }
+                }
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+
+        var reportesCreados = 0
+        // Orden cronológico
+        val semanasOrdenadas = semanasPendientesMap.values.sortedBy { it.fechaLunes }
+        for (semana in semanasOrdenadas) {
+            if (!existeReporteSemanal(semana.inicio, semana.fin)) {
+                val id = guardarCierreSemana(semana.inicio, semana.fin, semana.etiqueta)
+                if (id > 0) {
+                    reportesCreados++
+                }
+            }
+        }
+        return reportesCreados
+    }
+
+    /**
+     * HU-08: Obtiene la lista de todas las semanas cerradas para llenar el Spinner.
+     * Criterio: "de la más reciente a la más antigua", desde la tabla de reportes.
+     */
+    fun obtenerReportesSemanales(): List<ReporteSemanal> {
+        val lista = mutableListOf<ReporteSemanal>()
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT * FROM $TABLA_REPORTES_SEMANALES ORDER BY $COL_REP_FECHA_INICIO DESC",
+            null
+        )
+
+        if (cursor.moveToFirst()) {
+            val idIdx = cursor.getColumnIndexOrThrow(COL_REP_ID)
+            val inicioIdx = cursor.getColumnIndexOrThrow(COL_REP_FECHA_INICIO)
+            val finIdx = cursor.getColumnIndexOrThrow(COL_REP_FECHA_FIN)
+            val etiquetaIdx = cursor.getColumnIndexOrThrow(COL_REP_ETIQUETA_RANGO)
+            val segIdx = cursor.getColumnIndexOrThrow(COL_REP_SEGUNDOS_REGISTRADOS)
+            val horasSinIdx = cursor.getColumnIndexOrThrow(COL_REP_HORAS_SIN_REGISTRAR)
+            val porcSinIdx = cursor.getColumnIndexOrThrow(COL_REP_PORCENTAJE_SIN_REGISTRAR)
+
+            do {
+                val rep = ReporteSemanal(
+                    id = cursor.getLong(idIdx),
+                    fechaInicio = cursor.getString(inicioIdx),
+                    fechaFin = cursor.getString(finIdx),
+                    etiquetaRango = cursor.getString(etiquetaIdx),
+                    totalSegundosRegistrados = cursor.getLong(segIdx),
+                    horasSinRegistrar = cursor.getDouble(horasSinIdx),
+                    porcentajeSinRegistrar = cursor.getDouble(porcSinIdx)
+                )
+                lista.add(rep)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return lista
+    }
+
+    /**
+     * Obtiene el desglose por categorías de un reporte específico.
+     */
+    fun obtenerCategoriasPorReporte(reporteId: Long): List<ReporteCategoria> {
+        val lista = mutableListOf<ReporteCategoria>()
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            """
+            SELECT * FROM $TABLA_REPORTES_CATEGORIAS 
+            WHERE $COL_RC_REPORTE_ID = ? 
+            ORDER BY $COL_RC_HORAS DESC, $COL_RC_CATEGORIA_NOMBRE ASC
+            """.trimIndent(),
+            arrayOf(reporteId.toString())
+        )
+
+        if (cursor.moveToFirst()) {
+            val idIdx = cursor.getColumnIndexOrThrow(COL_RC_ID)
+            val catIdIdx = cursor.getColumnIndexOrThrow(COL_RC_CATEGORIA_ID)
+            val catNombreIdx = cursor.getColumnIndexOrThrow(COL_RC_CATEGORIA_NOMBRE)
+            val segIdx = cursor.getColumnIndexOrThrow(COL_RC_TOTAL_SEGUNDOS)
+            val horasIdx = cursor.getColumnIndexOrThrow(COL_RC_HORAS)
+            val porcIdx = cursor.getColumnIndexOrThrow(COL_RC_PORCENTAJE)
+
+            do {
+                val cat = ReporteCategoria(
+                    id = cursor.getLong(idIdx),
+                    reporteId = reporteId,
+                    categoriaId = cursor.getLong(catIdIdx),
+                    categoriaNombre = cursor.getString(catNombreIdx),
+                    totalSegundos = cursor.getLong(segIdx),
+                    horas = cursor.getDouble(horasIdx),
+                    porcentaje = cursor.getDouble(porcIdx)
+                )
+                lista.add(cat)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return lista
+    }
+
+    /**
+     * HU-08: Obtiene los eventos de la semana consultada con tarea, categoría, inicio, fin y duración.
+     */
+    fun obtenerEventosPorRangoFechas(inicioSemana: String, finSemana: String): List<Evento> {
+        val lista = mutableListOf<Evento>()
+        val db = readableDatabase
+        val sql = """
+            SELECT e.$COL_EVT_ID AS id,
+                   e.$COL_EVT_TAREA_ID AS tarea_id,
+                   t.$COL_TAR_NOMBRE AS tarea_nombre,
+                   c.$COL_CAT_NOMBRE AS categoria_nombre,
+                   e.$COL_EVT_FECHA_INICIO AS fecha_inicio,
+                   e.$COL_EVT_FECHA_FIN AS fecha_fin,
+                   e.$COL_EVT_DURACION_SEGUNDOS AS duracion_segundos
+            FROM $TABLA_EVENTOS e
+            INNER JOIN $TABLA_TAREAS t ON e.$COL_EVT_TAREA_ID = t.$COL_TAR_ID
+            INNER JOIN $TABLA_CATEGORIAS c ON t.$COL_TAR_CATEGORIA_ID = c.$COL_CAT_ID
+            WHERE e.$COL_EVT_FECHA_FIN IS NOT NULL
+              AND e.$COL_EVT_FECHA_INICIO >= ?
+              AND e.$COL_EVT_FECHA_INICIO <= ?
+            ORDER BY e.$COL_EVT_FECHA_INICIO DESC
+        """.trimIndent()
+
+        val cursor = db.rawQuery(sql, arrayOf(inicioSemana, finSemana))
+        if (cursor.moveToFirst()) {
+            val idIdx = cursor.getColumnIndexOrThrow("id")
+            val tareaIdIdx = cursor.getColumnIndexOrThrow("tarea_id")
+            val tareaNombreIdx = cursor.getColumnIndexOrThrow("tarea_nombre")
+            val catNombreIdx = cursor.getColumnIndexOrThrow("categoria_nombre")
+            val inicioIdx = cursor.getColumnIndexOrThrow("fecha_inicio")
+            val finIdx = cursor.getColumnIndexOrThrow("fecha_fin")
+            val duracionIdx = cursor.getColumnIndexOrThrow("duracion_segundos")
+
+            do {
+                val evento = Evento(
+                    id = cursor.getLong(idIdx),
+                    tareaId = cursor.getLong(tareaIdIdx),
+                    tareaNombre = cursor.getString(tareaNombreIdx),
+                    categoriaNombre = cursor.getString(catNombreIdx),
+                    fechaInicio = cursor.getString(inicioIdx),
+                    fechaFin = cursor.getString(finIdx),
+                    duracionSegundos = cursor.getLong(duracionIdx)
+                )
+                lista.add(evento)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return lista
     }
 }

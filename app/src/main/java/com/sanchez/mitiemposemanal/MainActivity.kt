@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
 import com.sanchez.mitiemposemanal.data.DatabaseHelper
 import com.sanchez.mitiemposemanal.data.model.Categoria
+import com.sanchez.mitiemposemanal.data.model.ReporteSemanal
 import com.sanchez.mitiemposemanal.data.model.Tarea
 import com.sanchez.mitiemposemanal.databinding.ActivityMainBinding
 import com.sanchez.mitiemposemanal.databinding.DialogCategoriaBinding
@@ -41,8 +42,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tareaAdapter: TareaAdapter
     private lateinit var categoriaAdapter: CategoriaAdapter
     private lateinit var eventoAdapter: EventoAdapter
+    private lateinit var eventoReporteAdapter: EventoAdapter
 
     private var tareasEncontradas: List<Tarea> = emptyList()
+    private var reportesList: List<ReporteSemanal> = emptyList()
     private val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
     private var tabActual: Int = TAB_INICIO
@@ -52,6 +55,7 @@ class MainActivity : AppCompatActivity() {
         private const val TAB_EVENTOS = 1
         private const val TAB_TAREAS = 2
         private const val TAB_CATEGORIAS = 3
+        private const val TAB_REPORTES = 4
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,11 +72,15 @@ class MainActivity : AppCompatActivity() {
 
         dbHelper = DatabaseHelper(this)
 
+        // HU-07: Al abrir la app, si hay semanas terminadas sin reporte, guardar el reporte de cada una
+        dbHelper.verificarYGenerarCierresSemanalesPendientes()
+
         configurarRecyclerViews()
         configurarBuscadorYEventos()
         configurarTabs()
         configurarFab()
         configurarDashboardInicio()
+        configurarReportes()
 
         // Cargar vista inicial de Inicio (Dashboard)
         cargarVistaInicio()
@@ -80,11 +88,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // HU-07: Verificar si terminó la semana mientras la app estuvo en segundo plano
+        dbHelper.verificarYGenerarCierresSemanalesPendientes()
+
         // Criterio HU-05: Si cierro la app con un evento en curso, al volver a abrirla sigue en curso
         if (tabActual == TAB_INICIO) {
             actualizarDashboardInicio()
         } else if (tabActual == TAB_EVENTOS) {
             actualizarVistaEventos()
+        } else if (tabActual == TAB_REPORTES) {
+            cargarVistaReportes()
         }
     }
 
@@ -115,6 +128,11 @@ class MainActivity : AppCompatActivity() {
         eventoAdapter = EventoAdapter(emptyList())
         binding.rvEventos.layoutManager = LinearLayoutManager(this)
         binding.rvEventos.adapter = eventoAdapter
+
+        // Adaptador Sprint 4 (Eventos de la semana reportada)
+        eventoReporteAdapter = EventoAdapter(emptyList())
+        binding.rvEventosReporte.layoutManager = LinearLayoutManager(this)
+        binding.rvEventosReporte.adapter = eventoReporteAdapter
     }
 
     private fun configurarTabs() {
@@ -136,6 +154,10 @@ class MainActivity : AppCompatActivity() {
                     TAB_CATEGORIAS -> {
                         tabActual = TAB_CATEGORIAS
                         cargarVistaCategorias()
+                    }
+                    TAB_REPORTES -> {
+                        tabActual = TAB_REPORTES
+                        cargarVistaReportes()
                     }
                 }
             }
@@ -396,6 +418,7 @@ class MainActivity : AppCompatActivity() {
         binding.layoutInicioContainer.visibility = View.VISIBLE
         binding.layoutEventosContainer.visibility = View.GONE
         binding.layoutListaContainer.visibility = View.GONE
+        binding.layoutReportesContainer.visibility = View.GONE
         binding.fabAdd.hide()
         actualizarDashboardInicio()
     }
@@ -404,6 +427,7 @@ class MainActivity : AppCompatActivity() {
         binding.layoutInicioContainer.visibility = View.GONE
         binding.layoutEventosContainer.visibility = View.VISIBLE
         binding.layoutListaContainer.visibility = View.GONE
+        binding.layoutReportesContainer.visibility = View.GONE
         binding.fabAdd.hide()
         actualizarVistaEventos()
     }
@@ -412,6 +436,7 @@ class MainActivity : AppCompatActivity() {
         binding.layoutInicioContainer.visibility = View.GONE
         binding.layoutEventosContainer.visibility = View.GONE
         binding.layoutListaContainer.visibility = View.VISIBLE
+        binding.layoutReportesContainer.visibility = View.GONE
         binding.fabAdd.show()
         binding.fabAdd.contentDescription = getString(R.string.crear_tarea)
 
@@ -434,6 +459,7 @@ class MainActivity : AppCompatActivity() {
         binding.layoutInicioContainer.visibility = View.GONE
         binding.layoutEventosContainer.visibility = View.GONE
         binding.layoutListaContainer.visibility = View.VISIBLE
+        binding.layoutReportesContainer.visibility = View.GONE
         binding.fabAdd.show()
         binding.fabAdd.contentDescription = getString(R.string.crear_categoria)
 
@@ -449,6 +475,103 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.layoutEmpty.visibility = View.GONE
             binding.rvItems.visibility = View.VISIBLE
+        }
+    }
+
+    // ==========================================
+    // SPRINT 4: HU-08 CONSULTAR REPORTES
+    // ==========================================
+
+    private fun cargarVistaReportes() {
+        binding.layoutInicioContainer.visibility = View.GONE
+        binding.layoutEventosContainer.visibility = View.GONE
+        binding.layoutListaContainer.visibility = View.GONE
+        binding.layoutReportesContainer.visibility = View.VISIBLE
+        binding.fabAdd.hide()
+
+        // HU-07: Asegurar que se hayan generado todos los reportes pendientes
+        dbHelper.verificarYGenerarCierresSemanalesPendientes()
+
+        reportesList = dbHelper.obtenerReportesSemanales()
+
+        if (reportesList.isEmpty()) {
+            binding.cardSelectorSemana.visibility = View.GONE
+            binding.layoutEmptyReportes.visibility = View.VISIBLE
+            binding.layoutContenidoReporte.visibility = View.GONE
+        } else {
+            binding.cardSelectorSemana.visibility = View.VISIBLE
+            binding.layoutEmptyReportes.visibility = View.GONE
+            binding.layoutContenidoReporte.visibility = View.VISIBLE
+
+            val adapter = ArrayAdapter(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                reportesList.map { it.etiquetaRango }
+            )
+            binding.spSemanasReporte.adapter = adapter
+            val posSeleccionada = binding.spSemanasReporte.selectedItemPosition.coerceIn(0, reportesList.lastIndex)
+            mostrarDetalleReporte(reportesList[posSeleccionada])
+        }
+    }
+
+    private fun configurarReportes() {
+        binding.spSemanasReporte.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (position in reportesList.indices) {
+                    mostrarDetalleReporte(reportesList[position])
+                }
+            }
+
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+    }
+
+    private fun mostrarDetalleReporte(reporte: ReporteSemanal) {
+        binding.tvReporteRangoTitulo.text = "Semana ${reporte.etiquetaRango}"
+
+        // 1. Mostrar categorías con horas y porcentaje sobre 168 horas
+        val categoriasReporte = dbHelper.obtenerCategoriasPorReporte(reporte.id)
+        binding.llFilasPorcentajeReporte.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+
+        for (cat in categoriasReporte) {
+            val filaBinding = ItemFilaPorcentajeBinding.inflate(inflater, binding.llFilasPorcentajeReporte, false)
+            filaBinding.tvNombreCategoriaFila.text = cat.categoriaNombre
+            filaBinding.tvHorasYPorcentajeFila.text = "${cat.horasFormateadas()} (${cat.porcentajeFormateado()})"
+
+            val progresoMil = (cat.porcentaje * 10).toInt().coerceIn(0, 1000)
+            filaBinding.pbPorcentajeFila.progress = progresoMil
+            filaBinding.pbPorcentajeFila.progressTintList = ColorStateList.valueOf(getColor(R.color.primary))
+
+            binding.llFilasPorcentajeReporte.addView(filaBinding.root)
+        }
+
+        // Fila adicional: "Sin registrar"
+        val filaSinRegistrar = ItemFilaPorcentajeBinding.inflate(inflater, binding.llFilasPorcentajeReporte, false)
+        filaSinRegistrar.tvNombreCategoriaFila.text = getString(R.string.sin_registrar)
+        filaSinRegistrar.tvNombreCategoriaFila.setTextColor(getColor(R.color.text_secondary))
+
+        val horasStr = String.format(Locale.US, "%.1f h", reporte.horasSinRegistrar)
+        val porcStr = String.format(Locale.US, "%.1f %%", reporte.porcentajeSinRegistrar)
+        filaSinRegistrar.tvHorasYPorcentajeFila.text = "$horasStr ($porcStr)"
+        filaSinRegistrar.tvHorasYPorcentajeFila.setTextColor(getColor(R.color.text_muted))
+
+        val progresoSinRegistrarMil = (reporte.porcentajeSinRegistrar * 10).toInt().coerceIn(0, 1000)
+        filaSinRegistrar.pbPorcentajeFila.progress = progresoSinRegistrarMil
+        filaSinRegistrar.pbPorcentajeFila.progressTintList = ColorStateList.valueOf(getColor(R.color.text_muted))
+
+        binding.llFilasPorcentajeReporte.addView(filaSinRegistrar.root)
+
+        // 2. Lista de eventos de esa semana con tarea, categoría, inicio, fin y duración
+        val eventos = dbHelper.obtenerEventosPorRangoFechas(reporte.fechaInicio, reporte.fechaFin)
+        eventoReporteAdapter.actualizarLista(eventos)
+
+        if (eventos.isEmpty()) {
+            binding.rvEventosReporte.visibility = View.GONE
+            binding.tvReporteSinEventos.visibility = View.VISIBLE
+        } else {
+            binding.rvEventosReporte.visibility = View.VISIBLE
+            binding.tvReporteSinEventos.visibility = View.GONE
         }
     }
 

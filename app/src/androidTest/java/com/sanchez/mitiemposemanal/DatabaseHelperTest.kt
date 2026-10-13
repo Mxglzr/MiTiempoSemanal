@@ -271,4 +271,49 @@ class DatabaseHelperTest {
         assertEquals(0.0, itemDescanso.porcentaje, 0.001)
         assertEquals("0.0 %", itemDescanso.porcentajeFormateado())
     }
+
+    // ==========================================
+    // PRUEBAS SPRINT 4 (HU-07 & HU-08: CIERRE Y REPORTES)
+    // ==========================================
+
+    @Test
+    fun testCierreSemanalYReportes() {
+        val idEstudio = dbHelper.obtenerCategorias().first { it.nombre == "Estudio" }.id
+        val idTareaEstudio = dbHelper.insertarTarea("Estudiar Android", idEstudio)
+
+        // Registrar evento en semana pasada: lunes 05/10/2026 a domingo 11/10/2026
+        val idEvtSemanaPasada = dbHelper.iniciarEvento(idTareaEstudio, "2026-10-06 10:00:00")
+        val duracion = 42L * 3600L // 42 horas = 25.0% de 168 horas
+        dbHelper.finalizarEvento(idEvtSemanaPasada, "2026-10-06 18:00:00", duracion)
+
+        // Simular apertura de la app en la semana siguiente (martes 13 de octubre)
+        val fechaReferencia = java.time.LocalDateTime.of(2026, 10, 13, 9, 0, 0)
+        val reportesGenerados = dbHelper.verificarYGenerarCierresSemanalesPendientes(fechaReferencia)
+        assertTrue(reportesGenerados >= 1)
+
+        // Consultar reportes para el Spinner
+        val listaReportes = dbHelper.obtenerReportesSemanales()
+        assertTrue(listaReportes.isNotEmpty())
+
+        val reporteSemanaPasada = listaReportes.first { it.fechaInicio.startsWith("2026-10-05") }
+        assertEquals("05/10/2026 – 11/10/2026", reporteSemanaPasada.etiquetaRango)
+        assertEquals(126.0, reporteSemanaPasada.horasSinRegistrar, 0.001) // 168 - 42 = 126 horas
+        assertEquals(75.0, reporteSemanaPasada.porcentajeSinRegistrar, 0.001) // 75.0%
+
+        // Consultar categorías del reporte
+        val categoriasReporte = dbHelper.obtenerCategoriasPorReporte(reporteSemanaPasada.id)
+        val catEstudio = categoriasReporte.first { it.categoriaNombre == "Estudio" }
+        assertEquals(42.0, catEstudio.horas, 0.001)
+        assertEquals(25.0, catEstudio.porcentaje, 0.001)
+        assertEquals("25.0 %", catEstudio.porcentajeFormateado())
+
+        // Consultar eventos de esa semana (no deben borrarse)
+        val eventosSemana = dbHelper.obtenerEventosPorRangoFechas(reporteSemanaPasada.fechaInicio, reporteSemanaPasada.fechaFin)
+        assertEquals(1, eventosSemana.size)
+        assertEquals("Estudiar Android", eventosSemana[0].tareaNombre)
+
+        // Verificar que no se duplica en una nueva apertura
+        val reintento = dbHelper.verificarYGenerarCierresSemanalesPendientes(fechaReferencia)
+        assertEquals(0, reintento)
+    }
 }
